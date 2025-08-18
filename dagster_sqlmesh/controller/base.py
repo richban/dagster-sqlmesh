@@ -9,7 +9,7 @@ from sqlmesh.core.config import CategorizerConfig
 from sqlmesh.core.console import set_console
 from sqlmesh.core.context import Context
 from sqlmesh.core.model import Model
-from sqlmesh.core.plan import PlanBuilder
+from sqlmesh.core.plan import Plan as SQLMeshPlan, PlanBuilder
 from sqlmesh.utils.dag import DAG
 from sqlmesh.utils.date import TimeLike
 
@@ -19,7 +19,6 @@ from dagster_sqlmesh.console import (
     ConsoleEventHandler,
     ConsoleException,
     EventConsole,
-    Plan,
     SnapshotCategorizer,
 )
 from dagster_sqlmesh.events import ConsoleGenerator
@@ -179,16 +178,7 @@ class SQLMeshInstance(t.Generic[ContextCls]):
         ) -> None:
             logger.debug("dagster-sqlmesh: thread started")
 
-            def auto_execute_plan(event: ConsoleEvent):
-                if isinstance(event, Plan):
-                    try:
-                        event.plan_builder.apply()
-                    except Exception as e:
-                        controller.console.exception(e)
-                return None
-
             try:
-                controller.console.add_handler(auto_execute_plan)
                 builder = t.cast(
                     PlanBuilder,
                     context.plan_builder(
@@ -381,6 +371,11 @@ class SQLMeshInstance(t.Generic[ContextCls]):
                 continue
             yield (model, deps)
 
+
+class ContextApplyFunction(t.Protocol):
+    def __call__(self, plan: SQLMeshPlan, *args: t.Any, **kwargs: t.Any) -> None:
+        ...
+
 class SQLMeshController(t.Generic[ContextCls]):
     """Allows control of sqlmesh via a python interface. It is not suggested to
     use the constructor of this class directly, but instead use the provided
@@ -480,7 +475,21 @@ class SQLMeshController(t.Generic[ContextCls]):
         if self.config.sqlmesh_config:
             options["config"] = self.config.sqlmesh_config
         set_console(self.console)
-        return self._context_factory(**options)
+        context = self._context_factory(**options)
+
+        # As part of the context, it specifies a method "apply" that we would
+        # like to introspect. To do so we replace "apply" with a wrapped
+        # function that generates a special console event unique to
+        # dagster-sqlmesh
+        def wrap_apply_event(f: ContextApplyFunction) -> ContextApplyFunction:
+            def wrapped_apply(plan: SQLMeshPlan, *args: t.Any, **kwargs: t.Any):
+                self.logger.debug("capturing plan as event")
+                self.console.capture_built_plan(plan)
+                result = f(plan, *args, **kwargs)
+                return result
+            return wrapped_apply
+        context.apply = wrap_apply_event(context.apply)
+        return context
 
     @contextmanager
     def instance(

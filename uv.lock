@@ -291,11 +291,12 @@ wheels = [
 
 [[package]]
 name = "dagster-sqlmesh"
-version = "0.18.0"
+version = "0.19.0"
 source = { editable = "." }
 dependencies = [
     { name = "dagster" },
     { name = "pyarrow" },
+    { name = "pydantic" },
     { name = "pytest" },
     { name = "sqlmesh" },
 ]
@@ -316,6 +317,7 @@ dev = [
 requires-dist = [
     { name = "dagster", specifier = ">=1.7.8" },
     { name = "pyarrow", specifier = ">=18.0.0" },
+    { name = "pydantic", specifier = ">=2.11.5" },
     { name = "pytest", specifier = ">=8.3.2" },
     { name = "sqlmesh", specifier = "<0.188" },
 ]
