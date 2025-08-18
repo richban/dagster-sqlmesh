@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0 (2025-08-18)
+
+* fix!: Runs should trigger materialization result (#50) ([ea62863](https://github.com/opensource-observer/oso/commit/ea62863)), closes [#50](https://github.com/opensource-observer/oso/issues/50)
+
 ## 0.19.0 (2025-08-08)
 
 * feat: introduce dagster sqlmesh cache (#48) ([fa52373](https://github.com/opensource-observer/oso/commit/fa52373)), closes [#48](https://github.com/opensource-observer/oso/issues/48)
