@@ -701,7 +701,7 @@ class SQLMeshResource(dg.ConfigurableResource):
     ) -> tuple[set[str], dict[str, Model], list[str] | None]:
         models_map = models.copy()
         try:
-            selected_output_names = set(context.selected_output_names)
+            selected_output_names = set(context.op_execution_context.selected_output_names)
         except (DagsterInvalidPropertyError, AttributeError) as e:
             # Special case for direct execution context when testing. This is related to:
             # https://github.com/dagster-io/dagster/issues/23633
