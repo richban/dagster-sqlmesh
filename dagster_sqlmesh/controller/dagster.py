@@ -12,7 +12,6 @@ from dagster_sqlmesh.types import (
     SQLMeshModelDep,
     SQLMeshMultiAssetOptions,
 )
-from dagster_sqlmesh.utils import get_asset_key_str
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +52,7 @@ class DagsterSQLMeshController(SQLMeshController[ContextCls]):
 
                         internal_asset_deps.add(dep_asset_key_str)
                     else:
-                        table = get_asset_key_str(dep.fqn)
+                        table = translator.get_asset_key_str(dep.fqn)
                         key = translator.get_asset_key(
                             context, dep.fqn
                         ).to_user_string()
@@ -62,7 +61,7 @@ class DagsterSQLMeshController(SQLMeshController[ContextCls]):
                         # create an external dep
                         deps_map[table] = translator.create_asset_dep(key=key)
 
-                model_key = get_asset_key_str(model.fqn)
+                model_key = translator.get_asset_key_str(model.fqn)
                 asset_outs[model_key] = translator.create_asset_out(
                     model_key=model_key,
                     asset_key=asset_key_str,

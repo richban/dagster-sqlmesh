@@ -24,11 +24,11 @@ from dagster import (
     AssetExecutionContext,
     Definitions,
 )
-from dagster_sqlmesh import sqlmesh_assets, SQLMeshContextConfig, SQLMeshResource, SQLMeshDagsterTranslator
+from dagster_sqlmesh import sqlmesh_assets, SQLMeshContextConfig, SQLMeshResource
 
 sqlmesh_config = SQLMeshContextConfig(path="/home/foo/sqlmesh_project", gateway="name-of-your-gateway")
 
-@sqlmesh_assets(environment="dev", config=sqlmesh_config, translator=SQLMeshDagsterTranslator())
+@sqlmesh_assets(environment="dev", config=sqlmesh_config)
 def sqlmesh_project(context: AssetExecutionContext, sqlmesh: SQLMeshResource):
     yield from sqlmesh.run(context)
 
@@ -39,6 +39,34 @@ defs = Definitions(
     },
 )
 ```
+
+## Advanced Usage
+
+### Custom Translator
+
+The translator is centrally configured and ensures consistency across all components. You can customize the translator by specifying a custom class in the config:
+
+```python
+from dagster_sqlmesh import SQLMeshDagsterTranslator
+
+class CustomSQLMeshTranslator(SQLMeshDagsterTranslator):
+    def get_asset_key_str(self, fqn: str) -> str:
+        # Custom asset key generation logic
+        return f"custom_prefix__{super().get_asset_key_str(fqn)}"
+
+# Configure with custom translator
+sqlmesh_config = SQLMeshContextConfig(
+    path="/home/foo/sqlmesh_project", 
+    gateway="name-of-your-gateway",
+    translator_class_name="your_module.CustomSQLMeshTranslator"
+)
+
+@sqlmesh_assets(environment="dev", config=sqlmesh_config)
+def sqlmesh_project(context: AssetExecutionContext, sqlmesh: SQLMeshResource):
+    yield from sqlmesh.run(context)
+```
+
+This approach ensures that both the `SQLMeshResource` and the `@sqlmesh_assets` decorator use the same translator instance, preventing inconsistencies. The translator is created using `config.get_translator()` and passed to all components that need it, including the `DagsterSQLMeshEventHandler`.
 
 
 ## Contributing

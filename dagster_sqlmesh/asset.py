@@ -10,7 +10,6 @@ from dagster_sqlmesh.controller import (
     ContextFactory,
     DagsterSQLMeshController,
 )
-from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
 from dagster_sqlmesh.types import SQLMeshMultiAssetOptions
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,6 @@ def sqlmesh_to_multi_asset_options(
     environment: str,
     config: SQLMeshContextConfig,
     context_factory: ContextFactory[ContextCls] = lambda **kwargs: Context(**kwargs),
-    dagster_sqlmesh_translator: SQLMeshDagsterTranslator | None = None,
 ) -> SQLMeshMultiAssetOptions:
     """Converts sqlmesh project into a SQLMeshMultiAssetOptions object which is
     an intermediate representation of the SQLMesh project that can be used to
@@ -28,12 +26,11 @@ def sqlmesh_to_multi_asset_options(
     controller = DagsterSQLMeshController.setup_with_config(
         config=config, context_factory=context_factory
     )
-    if not dagster_sqlmesh_translator:
-        dagster_sqlmesh_translator = SQLMeshDagsterTranslator()
+    translator = config.get_translator()
 
     conversion = controller.to_asset_outs(
         environment,
-        translator=dagster_sqlmesh_translator,
+        translator=translator,
     )
     return conversion
 
@@ -74,7 +71,6 @@ def sqlmesh_assets(
     config: SQLMeshContextConfig,
     context_factory: ContextFactory[ContextCls] = lambda **kwargs: Context(**kwargs),
     name: str | None = None,
-    dagster_sqlmesh_translator: SQLMeshDagsterTranslator | None = None,
     compute_kind: str = "sqlmesh",
     op_tags: t.Mapping[str, t.Any] | None = None,
     required_resource_keys: set[str] | None = None,
@@ -86,7 +82,6 @@ def sqlmesh_assets(
         environment=environment,
         config=config,
         context_factory=context_factory,
-        dagster_sqlmesh_translator=dagster_sqlmesh_translator,
     )
     
     return sqlmesh_asset_from_multi_asset_options(

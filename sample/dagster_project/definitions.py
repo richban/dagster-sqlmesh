@@ -27,7 +27,11 @@ SQLMESH_PROJECT_PATH = os.path.abspath(os.path.join(CURR_DIR, "../sqlmesh_projec
 SQLMESH_CACHE_PATH = os.path.join(SQLMESH_PROJECT_PATH, ".cache")
 DUCKDB_PATH = os.path.join(CURR_DIR, "../../db.db")
 
-sqlmesh_config = SQLMeshContextConfig(path=SQLMESH_PROJECT_PATH, gateway="local")
+sqlmesh_config = SQLMeshContextConfig(
+    path=SQLMESH_PROJECT_PATH, 
+    gateway="local",
+    translator_class_name="definitions.RewrittenSQLMeshTranslator"
+)
 
 
 class RewrittenSQLMeshTranslator(SQLMeshDagsterTranslator):
@@ -101,7 +105,6 @@ def post_full_model() -> pl.DataFrame:
     environment="dev",
     config=sqlmesh_config,
     enabled_subsetting=True,
-    dagster_sqlmesh_translator=RewrittenSQLMeshTranslator(),
 )
 def sqlmesh_project(
     context: AssetExecutionContext, sqlmesh: SQLMeshResource

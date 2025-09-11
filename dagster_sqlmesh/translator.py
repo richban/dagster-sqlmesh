@@ -45,41 +45,97 @@ class IntermediateAssetDep(BaseModel):
 
 
 class SQLMeshDagsterTranslator:
-    """Translates sqlmesh objects for dagster"""
+    """Translates SQLMesh objects for Dagster.
+    
+    This class provides methods to convert SQLMesh models and metadata into
+    Dagster-compatible formats. It can be subclassed to customize the translation
+    behavior, such as changing asset key generation or grouping logic.
+    
+    The translator is used throughout the dagster-sqlmesh integration, including
+    in the DagsterSQLMeshEventHandler and asset generation process.
+    """
 
     def get_asset_key(self, context: Context, fqn: str) -> AssetKey:
-        """Given the sqlmesh context and a model return the asset key"""
+        """Get the Dagster AssetKey for a SQLMesh model.
+        
+        Args:
+            context: The SQLMesh context (unused in default implementation)
+            fqn: Fully qualified name of the SQLMesh model
+            
+        Returns:
+            AssetKey: The Dagster asset key for this model
+        """
         path = self.get_asset_key_name(fqn)
         return AssetKey(path)
 
     def get_asset_key_name(self, fqn: str) -> Sequence[str]:
+        """Parse a fully qualified name into asset key components.
+        
+        Args:
+            fqn: Fully qualified name of the SQLMesh model (e.g., "catalog.schema.table")
+            
+        Returns:
+            Sequence[str]: Asset key components [catalog, schema, table]
+        """
         table = exp.to_table(fqn)
         asset_key_name = [table.catalog, table.db, table.name]
 
         return asset_key_name
 
     def get_group_name(self, context: Context, model: Model) -> str:
+        """Get the Dagster asset group name for a SQLMesh model.
+        
+        Args:
+            context: The SQLMesh context (unused in default implementation)
+            model: The SQLMesh model
+            
+        Returns:
+            str: The asset group name (defaults to the schema/database name)
+        """
         path = self.get_asset_key_name(model.fqn)
         return path[-2]
 
     def get_context_dialect(self, context: Context) -> str:
+        """Get the SQL dialect used by the SQLMesh context.
+        
+        Args:
+            context: The SQLMesh context
+            
+        Returns:
+            str: The SQL dialect name (e.g., "duckdb", "postgres", etc.)
+        """
         return context.engine_adapter.dialect
 
     def create_asset_dep(self, *, key: str, **kwargs: t.Any) -> ConvertibleToAssetDep:
-        """Create an object that resolves to an AssetDep
+        """Create an object that resolves to an AssetDep.
 
-        Most users of this library will not need to use this method, it is
-        primarily the way we enable cacheable assets from dagster-sqlmesh.
+        This creates an intermediate representation that can be converted to a
+        Dagster AssetDep. Most users will not need to use this method directly.
+        
+        Args:
+            key: The asset key string for the dependency
+            **kwargs: Additional arguments to pass to the AssetDep
+            
+        Returns:
+            ConvertibleToAssetDep: An object that can be converted to an AssetDep
         """
         return IntermediateAssetDep(key=key, kwargs=kwargs)
 
     def create_asset_out(
         self, *, model_key: str, asset_key: str, **kwargs: t.Any
     ) -> ConvertibleToAssetOut:
-        """Create an object that resolves to an AssetOut
+        """Create an object that resolves to an AssetOut.
 
-        Most users of this library will not need to use this method, it is
-        primarily the way we enable cacheable assets from dagster-sqlmesh.
+        This creates an intermediate representation that can be converted to a
+        Dagster AssetOut. Most users will not need to use this method directly.
+        
+        Args:
+            model_key: Internal key for the SQLMesh model
+            asset_key: The asset key string for the output
+            **kwargs: Additional arguments including tags, group_name, kinds, etc.
+            
+        Returns:
+            ConvertibleToAssetOut: An object that can be converted to an AssetOut
         """
         return IntermediateAssetOut(
             model_key=model_key,
@@ -91,6 +147,41 @@ class SQLMeshDagsterTranslator:
             kwargs=kwargs,
         )
 
+    def get_asset_key_str(self, fqn: str) -> str:
+        """Get asset key string with sqlmesh prefix for internal mapping.
+        
+        This creates an internal identifier used to map outputs and dependencies
+        within the dagster-sqlmesh integration. It will not affect the actual
+        AssetKeys that users see. The result contains only alphanumeric characters
+        and underscores, making it safe for internal usage.
+        
+        Args:
+            fqn: Fully qualified name of the SQLMesh model
+            
+        Returns:
+            str: Internal asset key string with "sqlmesh__" prefix
+        """
+        table = exp.to_table(fqn)
+        asset_key_name = [table.catalog, table.db, table.name]
+        
+        return "sqlmesh__" + "_".join(asset_key_name)
+
     def get_tags(self, context: Context, model: Model) -> dict[str, str]:
-        """Given the sqlmesh context and a model return the tags for that model"""
-        return {k: "true" for k in model.tags}
+        """Get Dagster asset tags for a SQLMesh model.
+        
+        Args:
+            context: The SQLMesh context (unused in default implementation)
+            model: The SQLMesh model
+            
+        Returns:
+            dict[str, str]: Dictionary of tags to apply to the Dagster asset.
+                           Default implementation converts SQLMesh model tags to 
+                           empty string values, which causes the Dagster UI to
+                           render them as labels rather than key-value pairs.
+                           
+        Note:
+            Tags must contain only strings as keys and values. The Dagster UI
+            will render tags with empty string values as "labels" rather than
+            key-value pairs.
+        """
+        return {k: "" for k in model.tags}

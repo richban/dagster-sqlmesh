@@ -81,6 +81,8 @@ class TestSQLMeshResource(SQLMeshResource):
         Returns:
             DagsterSQLMeshEventHandler: The created event handler.
         """
+        # Ensure translator is passed to the event handler factory
+        kwargs['translator'] = self.config.get_translator()
         return self._event_handler_factory(*args, **kwargs)
 
 
